@@ -59,12 +59,12 @@
 
     <!-- 底部 -->
     <div class="footer">
-      <div class="icon-home">
+      <div class="icon-home" @click="$router.push('/')">
         <van-icon name="wap-home-o" />
         <span>首页</span>
       </div>
-      <div  class="icon-cart">
-        <span  class="num"></span>
+      <div  class="icon-cart" @click="$router.push('/cart')">
+        <span v-if="cartTotal>0" class="num">{{cartTotal}}</span>
         <van-icon name="shopping-cart-o" />
         <span>购物车</span>
       </div>
@@ -98,8 +98,8 @@
 
         <!-- 有库存才显示提交按钮 -->
         <div class="showbtn" v-if = " detail.stock_total > 0" >
-          <div class="btn" v-if =" mode === '加入购物车' ">加入购物车</div>
-          <div class="btn now" v-else>立刻购买</div>
+          <div class="btn" v-if =" mode === '加入购物车' " @click="addCart">加入购物车</div>
+          <div class="btn now" v-else @click="goPay">立刻购买</div>
         </div>
 
         <div class="btn-none" v-else>该商品已抢完</div>
@@ -112,8 +112,12 @@
 import { getProDetail, getProcomments } from '@/api/product'
 import defaultImg from '@/assets/default-avatar.png'
 import CountBox from '@/components/CountBox.vue'
+import { addCart } from '@/api/cart'
+import loginComfirm from '@/mixins/loginComfirm'
+
 export default {
   name: 'ProdetailIndex',
+  mixins: [loginComfirm],
   components: {
     CountBox
   },
@@ -127,12 +131,14 @@ export default {
       defaultImg,
       showPannel: false,
       mode: '',
-      count: 1
+      count: 1,
+      cartTotal: 0
     }
   },
   async created () {
     const { data: { detail } } = await getProDetail(this.$route.params.id)
     this.detail = detail
+    console.log(detail)
     this.images = detail.goods_images
 
     const res = await getProcomments(this.$route.params.id, 3)
@@ -150,6 +156,26 @@ export default {
     buygoods () {
       this.mode = '立刻购买'
       this.showPannel = true
+    },
+    async addCart () {
+      if (!this.loginComfirm()) return
+      const res = await addCart(this.$route.params.id, this.count, this.detail.skuList[0].goods_sku_id)
+      console.log(res)
+      this.cartTotal = res.data.cartTotal
+      this.$toast('加入购物车成功')
+      this.showPannel = false
+    },
+    goPay () {
+      if (!this.loginComfirm()) return
+      this.$router.push({
+        path: '/pay',
+        query: {
+          mode: 'buyNow',
+          goodsId: this.detail.goods_id,
+          goodsSkuId: this.detail.skuList[0].goods_sku_id,
+          goodsNum: this.count
+        }
+      })
     }
   }
 }
@@ -257,6 +283,10 @@ export default {
     }
     .time {
       color: #999;
+    }
+    .content{
+      width: 100%;
+      overflow: hidden;
     }
   }
 
